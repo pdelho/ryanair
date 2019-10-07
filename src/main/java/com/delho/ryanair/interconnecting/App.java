@@ -1,33 +1,42 @@
 package com.delho.ryanair.interconnecting;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.boot.SpringApplication;
+import org.springframework.boot.autoconfigure.SpringBootApplication;
+import org.springframework.context.annotation.ComponentScan;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.client.RestTemplate;
 
+import com.delho.ryanair.constants.Constants;
 import com.delho.ryanair.interconnecting.model.Route;
 import com.delho.ryanair.interconnecting.model.Schedule;
 
+@SpringBootApplication
+@ComponentScan("com.delho.ryanair.controllers")
 public class App 
 {
-	// private static final Logger LOG = LoggerFactory.getLogger(App.class);
-	
-	private static final String ROUTES_API = "https://services-api.ryanair.com/locate/3/routes";
-	private static final String SCHEDULES_API ="https://services-api.ryanair.com/timtbl/3/schedules/DUB/MAD/years/2019/months/10";
-	
+	private static final Logger LOG = LoggerFactory.getLogger(App.class);
 	
     public static void main( String[] args )
     {
-    	RestTemplate restTemplateRoutes = new RestTemplate();
-    	ResponseEntity<Route[]> responseEntity = restTemplateRoutes.getForEntity(ROUTES_API, Route[].class);
-    	Route[] routes = responseEntity.getBody();
-    	for (Route route: routes)
+    	if(LOG.isDebugEnabled())
     	{
-    		System.out.println(route.toString());
+    		RestTemplate restTemplateRoutes = new RestTemplate();
+        	ResponseEntity<Route[]> responseEntity = restTemplateRoutes.getForEntity(Constants.ROUTES_API, Route[].class);
+        	Route[] routes = responseEntity.getBody();
+        	for (Route route: routes)
+        	{
+        		LOG.debug(route.toString());
+        	}
+        	
+        	RestTemplate restTemplateSchedules = new RestTemplate();
+        	ResponseEntity<Schedule> responseEntitySchedules = restTemplateSchedules.getForEntity(Constants.SCHEDULES_API, Schedule.class);
+        	Schedule schedule = responseEntitySchedules.getBody();
+        	LOG.debug(schedule.toString());
     	}
-    	
-    	RestTemplate restTemplateSchedules = new RestTemplate();
-    	ResponseEntity<Schedule> responseEntitySchedules = restTemplateSchedules.getForEntity(SCHEDULES_API, Schedule.class);
-    	Schedule schedule = responseEntitySchedules.getBody();
-    	System.out.println(schedule);
+    		
+    	SpringApplication.run(App.class, args);
 
     }
 }
