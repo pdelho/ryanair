@@ -129,8 +129,8 @@ public class InterconnectingFlightsController {
 			// If its destination is equal to arrival, possible direct connection
 			if (arrival.equals(departingRoute.getAirportTo()))
 			{
-				LOG.debug("There is a possible direct connection between {} and {}", departingRoute.getAirportFrom(), arrival);
-				LOG.debug("Checking schedules...");
+				LOG.info("There is a possible direct connection between {} and {}", departingRoute.getAirportFrom(), arrival);
+				LOG.info("Checking schedules...");
 				this.getFlights(directConnections, departingRoute, arrival, departingYear, departingMonth, departureDate, arrivalDate, true);
 			}
 			
@@ -139,7 +139,7 @@ public class InterconnectingFlightsController {
 			{
 				if (arrivingRoute.getAirportFrom().equals(departingRoute.getAirportTo()))
 				{
-					LOG.debug("There is a possible interconnection between {}-{}-{}", departingRoute.getAirportFrom(), departingRoute.getAirportTo(), arrivingRoute.getAirportTo());
+					LOG.info("There is a possible interconnection between {}-{}-{}", departingRoute.getAirportFrom(), departingRoute.getAirportTo(), arrivingRoute.getAirportTo());
 					
 					
 				}
@@ -175,7 +175,7 @@ public class InterconnectingFlightsController {
 				// Departing date must be after and arrival date must be before
 				if (departingDateFlight.after(departureDate) && arrivingDateFlight.before(arrivalDate))
 				{
-					LOG.debug("Flight departing at {} and arriving at {} available", departingDateFlight.toString(), arrivingDateFlight.toString());
+					LOG.info("Flight departing at {} and arriving at {} available", utils.getFormatedCalendar(departingDateFlight), utils.getFormatedCalendar(arrivingDateFlight));
 					Leg leg = new Leg();
 					leg.setDepartureAirport(departingRoute.getAirportFrom());
 					leg.setArrivalAirport(arrival);
