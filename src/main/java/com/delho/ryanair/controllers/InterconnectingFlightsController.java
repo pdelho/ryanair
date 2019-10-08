@@ -1,5 +1,7 @@
 package com.delho.ryanair.controllers;
 
+import java.text.ParseException;
+import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Calendar;
@@ -9,6 +11,7 @@ import java.util.stream.Collectors;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.boot.context.config.ResourceNotFoundException;
 import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -16,6 +19,7 @@ import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.client.HttpClientErrorException;
 import org.springframework.web.client.RestTemplate;
 
 import com.delho.ryanair.constants.Constants;
@@ -77,9 +81,18 @@ public class InterconnectingFlightsController {
 	
 	protected Schedule getSchedule(final String scheduleAPI)
 	{
-		final RestTemplate restTemplateRoutes = new RestTemplate();
-		final ResponseEntity<Schedule> responseEntity = restTemplateRoutes.getForEntity(scheduleAPI, Schedule.class);
-		return responseEntity.getBody();
+		try
+		{
+			final RestTemplate restTemplateRoutes = new RestTemplate();
+			final ResponseEntity<Schedule> responseEntity = restTemplateRoutes.getForEntity(scheduleAPI, Schedule.class);
+			return responseEntity.getBody();
+		}
+		catch (ResourceNotFoundException | HttpClientErrorException e)
+		{
+			LOG.error(e.getMessage());
+			return null;
+		}
+		
 	}
 	
     @RequestMapping("/interconnections")
@@ -91,8 +104,6 @@ public class InterconnectingFlightsController {
     	
     	// We will return a list of connections
     	List <Connection> availableConnections = new ArrayList<Connection>();
-    	List <Leg> directConnections = new ArrayList<Leg>();
-    	List <Leg> interConnections = new ArrayList<Leg>();
     	
     	// Use calendars instead of Date as some methods are deprecated
     	final Calendar departureDate = Calendar.getInstance();
@@ -103,10 +114,11 @@ public class InterconnectingFlightsController {
 		
 		final Calendar arrivalDate = Calendar.getInstance();
 		arrivalDate.setTime(arrivalDateTime);
-		final Integer arrivingYear = arrivalDate.get(Calendar.YEAR);
-    	// Month is 0-index based
-    	final Integer arrivingMonth = arrivalDate.get(Calendar.MONTH)+1;
+		//		final Integer arrivingYear = arrivalDate.get(Calendar.YEAR);
+		//    	// Month is 0-index based
+		//    	final Integer arrivingMonth = arrivalDate.get(Calendar.MONTH)+1;
 		
+    	// Get all routes
 		List<Route> allRoutes = this.getRoutes(Constants.ROUTES_API);
 		// Filter Ryanair only
 		allRoutes = allRoutes.stream()               
@@ -131,59 +143,157 @@ public class InterconnectingFlightsController {
 			{
 				LOG.info("There is a possible direct connection between {} and {}", departingRoute.getAirportFrom(), arrival);
 				LOG.info("Checking schedules...");
-				this.getFlights(directConnections, departingRoute, arrival, departingYear, departingMonth, departureDate, arrivalDate, true);
+				this.setDirecteFlights(availableConnections, departingRoute, arrival, departingYear, departingMonth, departureDate, arrivalDate);
 			}
 			
-			// For each arriving route, if its departure is equal to departure's arrival
+			// For each arriving route, if its departure is equal to departure's arrival, possible interconnection
 			for (Route arrivingRoute: arrivingRoutes)
 			{
 				if (arrivingRoute.getAirportFrom().equals(departingRoute.getAirportTo()))
 				{
+					// Structure:
+					// Airport 1 - (Flight1) - Airport 2 - (Flight 2) - Airport 3
 					LOG.info("There is a possible interconnection between {}-{}-{}", departingRoute.getAirportFrom(), departingRoute.getAirportTo(), arrivingRoute.getAirportTo());
+					LOG.info("Checking schedules...");
 					
-					
+					// Flight 1
+					// Get schedules for flight1 (airport 1 to airport 2)
+					final String scheduleOneAPI = String.format(Constants.SCHEDULES_API_PATTERN, departingRoute.getAirportFrom(), departingRoute.getAirportTo(), departingYear, departingMonth);
+					final Schedule scheduleOne =  this.getSchedule(scheduleOneAPI);
+					if (scheduleOne != null)
+					{
+						// List of available flights for leg 1, we will have to iterate them
+						List <Leg> legsOne = new ArrayList<Leg>();
+						for (Day day: scheduleOne.getDays())
+						{
+							for (Flight flight : day.getFlights())
+							{
+								final Calendar departingDateFlight = utils.getCalendarFromFlightDate(departingYear, departingMonth, day.getDay(), flight.getDepartureTime(), Constants.DIRECT_FLIGHT);
+								// FIXME Check if day or month changes
+								final Calendar arrivingDateFlight = utils.getCalendarFromFlightDate(departingYear, departingMonth, day.getDay(), flight.getArrivalTime(), Constants.DIRECT_FLIGHT);
+								// Departing date must be after and arrival date must be before
+								if (departingDateFlight.after(departureDate) && arrivingDateFlight.before(arrivalDate))
+								{
+									LOG.info("First flight departing at {} and arriving at {} available", utils.getFormatedCalendar(departingDateFlight), utils.getFormatedCalendar(arrivingDateFlight));
+									Leg legOne = new Leg();
+									legOne.setDepartureAirport(departingRoute.getAirportFrom());
+									legOne.setArrivalAirport(departingRoute.getAirportTo());
+									legOne.setDepartureDateTime(utils.getFormatedCalendar(departingDateFlight));
+									legOne.setArrivalDateTime(utils.getFormatedCalendar(arrivingDateFlight));
+									legsOne.add(legOne);
+								}
+								else
+								{
+									LOG.debug("Flight departing at {} and arriving at {} is not possible", utils.getFormatedCalendar(departingDateFlight), utils.getFormatedCalendar(arrivingDateFlight));
+								}
+							}					
+						}
+						
+						// For each first leg available 
+						for (Leg legOne : legsOne)
+						{
+							// Get schedules for flight 2 (airport 2 or leg 1 arrival to airport 3)
+							final String scheduleTwoAPI = String.format(Constants.SCHEDULES_API_PATTERN, arrivingRoute.getAirportFrom(), arrivingRoute.getAirportTo(), departingYear, departingMonth);
+							final Schedule scheduleTwo =  this.getSchedule(scheduleTwoAPI);
+							if (scheduleTwo != null)
+							{
+								for (Day day: scheduleTwo.getDays())
+								{
+									for (Flight flight : day.getFlights())
+									{
+										final Calendar departingDateFlight = utils.getCalendarFromFlightDate(departingYear, departingMonth, day.getDay(), flight.getDepartureTime(), Constants.DIRECT_FLIGHT);
+										// FIXME Check if day or month changes
+										final Calendar arrivingDateFlight = utils.getCalendarFromFlightDate(departingYear, departingMonth, day.getDay(), flight.getArrivalTime(), Constants.DIRECT_FLIGHT);
+										
+										// Warning we have to add two hours to leg one arrival time and ensure that is before departing time
+										final String legOneArrivalWithInterconnectionString = legOne.getArrivalDateTime();
+										Date legOneArrivalWithInterconnectionDate = new Date();
+										try 
+										{
+											legOneArrivalWithInterconnectionDate = new SimpleDateFormat(Constants.DATE_PATTERN).parse(legOneArrivalWithInterconnectionString);
+										} 
+										catch (final ParseException e) 
+										{
+											LOG.error(e.getMessage());
+										} 
+								    	final Calendar legOneArrivalWithInterconnection = Calendar.getInstance();
+								    	legOneArrivalWithInterconnection.setTime(legOneArrivalWithInterconnectionDate);
+								    	legOneArrivalWithInterconnection.set(Calendar.HOUR_OF_DAY, legOneArrivalWithInterconnection.get(Calendar.HOUR_OF_DAY) + Constants.CONNECTION_FLIGHT_HOURS);
+								    	
+										
+										// Departing date must be after and arrival date must be before
+										// AND departing date with interconnection before that arrivalDateFlight
+										if (departingDateFlight.after(departureDate) && arrivingDateFlight.before(arrivalDate)
+												&& legOneArrivalWithInterconnection.before(departingDateFlight))
+										{
+											LOG.info("Second flight departing at {} and arriving at {} available", utils.getFormatedCalendar(departingDateFlight), utils.getFormatedCalendar(arrivingDateFlight));
+											Leg legTwo = new Leg();
+											legTwo.setDepartureAirport(arrivingRoute.getAirportFrom());
+											legTwo.setArrivalAirport(arrivingRoute.getAirportTo());
+											legTwo.setDepartureDateTime(utils.getFormatedCalendar(departingDateFlight));
+											legTwo.setArrivalDateTime(utils.getFormatedCalendar(arrivingDateFlight));
+											// Add leg one and leg two as an interconnected flight
+											final List<Leg> legs = new ArrayList<Leg>();
+											legs.add(legOne);
+											legs.add(legTwo);
+											Connection connection = new Connection (Constants.CONNECTION_FLIGHT, legs);
+											availableConnections.add(connection);
+											
+										}
+										else
+										{
+											LOG.debug("Flight departing at {} and arriving at {} is not possible", utils.getFormatedCalendar(departingDateFlight), utils.getFormatedCalendar(arrivingDateFlight));
+										}
+									}					
+								}
+							}
+						}
+						
+					}			
 				}
 			}
 		}
 		
-		// Set direct flights if any
-		if (!directConnections.isEmpty() && directConnections!= null)
-		{
-			for (Leg leg: directConnections)
-			{
-				Connection connection = new Connection(Constants.DIRECT_FLIGHT, leg);
-				availableConnections.add(connection);
-			}		
-		}
+		// Set interconnected flights if any
     	
     	return new ResponseEntity<List<Connection>>(availableConnections, HttpStatus.OK);
     }
     
-    protected void getFlights (List <Leg> directConnections, final Route departingRoute, final String arrival, 
-    		final Integer departingYear, final Integer departingMonth, final Calendar departureDate, final Calendar arrivalDate,
-    		Boolean isDirect)
+    protected void setDirecteFlights (final List<Connection> connections, final Route departingRoute, final String arrival, 
+    		final Integer departingYear, final Integer departingMonth, final Calendar departureDate, final Calendar arrivalDate)
     {
     	final String scheduleAPI = String.format(Constants.SCHEDULES_API_PATTERN, departingRoute.getAirportFrom(), arrival, departingYear, departingMonth);
 		final Schedule schedule =  this.getSchedule(scheduleAPI);
-		for (Day day: schedule.getDays())
+		if (schedule != null)
 		{
-			for (Flight flight : day.getFlights())
+			for (Day day: schedule.getDays())
 			{
-				Calendar departingDateFlight = utils.getCalendarFromFlightDate(departingYear, departingMonth, day.getDay(), flight.getDepartureTime());
-				// FIXME Check if day or month changes
-				Calendar arrivingDateFlight = utils.getCalendarFromFlightDate(departingYear, departingMonth, day.getDay(), flight.getArrivalTime());
-				// Departing date must be after and arrival date must be before
-				if (departingDateFlight.after(departureDate) && arrivingDateFlight.before(arrivalDate))
+				for (Flight flight : day.getFlights())
 				{
-					LOG.info("Flight departing at {} and arriving at {} available", utils.getFormatedCalendar(departingDateFlight), utils.getFormatedCalendar(arrivingDateFlight));
-					Leg leg = new Leg();
-					leg.setDepartureAirport(departingRoute.getAirportFrom());
-					leg.setArrivalAirport(arrival);
-					leg.setDepartureDateTime(utils.getFormatedCalendar(departingDateFlight));
-					leg.setArrivalDateTime(utils.getFormatedCalendar(arrivingDateFlight));
-					directConnections.add(leg);
-				}
-			}					
-		}	
+					final Calendar departingDateFlight = utils.getCalendarFromFlightDate(departingYear, departingMonth, day.getDay(), flight.getDepartureTime(), Constants.DIRECT_FLIGHT);
+					// FIXME Check if day or month changes
+					final Calendar arrivingDateFlight = utils.getCalendarFromFlightDate(departingYear, departingMonth, day.getDay(), flight.getArrivalTime(), Constants.DIRECT_FLIGHT);
+					// Departing date must be after and arrival date must be before
+					if (departingDateFlight.after(departureDate) && arrivingDateFlight.before(arrivalDate))
+					{
+						LOG.info("Flight departing at {} and arriving at {} available", utils.getFormatedCalendar(departingDateFlight), utils.getFormatedCalendar(arrivingDateFlight));
+						final List<Leg> legs = new ArrayList<Leg>();
+						final Leg leg = new Leg();
+						leg.setDepartureAirport(departingRoute.getAirportFrom());
+						leg.setArrivalAirport(arrival);
+						leg.setDepartureDateTime(utils.getFormatedCalendar(departingDateFlight));
+						leg.setArrivalDateTime(utils.getFormatedCalendar(arrivingDateFlight));
+						legs.add(leg);
+						final Connection connection = new Connection(Constants.DIRECT_FLIGHT, legs);
+						connections.add(connection);
+					}
+					else
+					{
+						LOG.debug("Flight departing at {} and arriving at {} is not possible", utils.getFormatedCalendar(departingDateFlight), utils.getFormatedCalendar(arrivingDateFlight));
+					}
+				}					
+			}
+		}
+			
     }
 }

@@ -8,6 +8,7 @@ public class Constants {
 	
 	public static final Integer DIRECT_FLIGHT = 0;
 	public static final Integer CONNECTION_FLIGHT = 1;
+	public static final Integer CONNECTION_FLIGHT_HOURS = 2;
 	
 	public static final String DATE_PATTERN = "yyyy-MM-dd'T'HH:mm";
 }

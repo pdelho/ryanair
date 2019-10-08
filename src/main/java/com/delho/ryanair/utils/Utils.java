@@ -9,26 +9,27 @@ import com.delho.ryanair.constants.Constants;
 
 public class Utils {
 	
-	public Calendar getCalendarFromFlightDate(Integer year, Integer month, Integer day, String dateString)
+	public Calendar getCalendarFromFlightDate(final Integer year, final Integer month, final Integer day, final String dateString, final Integer interconnectionHours)
 	{
-		String[] time = dateString.split ( ":" );
-		int hour = Integer.parseInt ( time[0].trim() );
-		int minute = Integer.parseInt ( time[1].trim() );
+		final String[] time = dateString.split ( ":" );
+		final int hour = Integer.parseInt ( time[0].trim() );
+		final int minute = Integer.parseInt ( time[1].trim() );
 		
-		Calendar calendar = Calendar.getInstance();
+		final Calendar calendar = Calendar.getInstance();
 		calendar.set(Calendar.YEAR, year);
+		// Zero index based
 		calendar.set(Calendar.MONTH, month-1);
 		calendar.set(Calendar.DAY_OF_MONTH, day);
-		calendar.set(Calendar.HOUR_OF_DAY, hour);
+		calendar.set(Calendar.HOUR_OF_DAY, hour + interconnectionHours);
 		calendar.set(Calendar.MINUTE, minute);
 		return calendar;
 
 	}
 	
-	public String getFormatedCalendar(Calendar calendar)
+	public String getFormatedCalendar(final Calendar calendar)
 	{
-		Date date = calendar.getTime();  
-		DateFormat dateFormat = new SimpleDateFormat(Constants.DATE_PATTERN);  
+		final Date date = calendar.getTime();  
+		final DateFormat dateFormat = new SimpleDateFormat(Constants.DATE_PATTERN);  
 		return dateFormat.format(date);
 	}
 
