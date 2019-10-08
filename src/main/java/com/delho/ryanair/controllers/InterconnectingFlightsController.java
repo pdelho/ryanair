@@ -131,31 +131,37 @@ public class InterconnectingFlightsController {
 			{
 				LOG.debug("There is a possible direct connection between {} and {}", departingRoute.getAirportFrom(), arrival);
 				LOG.debug("Checking schedules...");
-				this.getDirectFlights(directConnections, departingRoute, arrival, departingYear, departingMonth, departureDate, arrivalDate);
+				this.getFlights(directConnections, departingRoute, arrival, departingYear, departingMonth, departureDate, arrivalDate, true);
 			}
 			
 			// For each arriving route, if its departure is equal to departure's arrival
-//			for (Route arrivingRoute: arrivingRoutes)
-//			{
-//				if (arrival.equals(departingRoute.getAirportTo()))
-//				{
-//					
-//				}
-//			}
+			for (Route arrivingRoute: arrivingRoutes)
+			{
+				if (arrivingRoute.getAirportFrom().equals(departingRoute.getAirportTo()))
+				{
+					LOG.debug("There is a possible interconnection between {}-{}-{}", departingRoute.getAirportFrom(), departingRoute.getAirportTo(), arrivingRoute.getAirportTo());
+					
+					
+				}
+			}
 		}
 		
 		// Set direct flights if any
 		if (!directConnections.isEmpty() && directConnections!= null)
 		{
-			Connection connection = new Connection(Constants.DIRECT_FLIGHT, directConnections);
-			availableConnections.add(connection);
+			for (Leg leg: directConnections)
+			{
+				Connection connection = new Connection(Constants.DIRECT_FLIGHT, leg);
+				availableConnections.add(connection);
+			}		
 		}
     	
     	return new ResponseEntity<List<Connection>>(availableConnections, HttpStatus.OK);
     }
     
-    protected void getDirectFlights (List <Leg> directConnections, final Route departingRoute, final String arrival, 
-    		final Integer departingYear, final Integer departingMonth, final Calendar departureDate, final Calendar arrivalDate)
+    protected void getFlights (List <Leg> directConnections, final Route departingRoute, final String arrival, 
+    		final Integer departingYear, final Integer departingMonth, final Calendar departureDate, final Calendar arrivalDate,
+    		Boolean isDirect)
     {
     	final String scheduleAPI = String.format(Constants.SCHEDULES_API_PATTERN, departingRoute.getAirportFrom(), arrival, departingYear, departingMonth);
 		final Schedule schedule =  this.getSchedule(scheduleAPI);

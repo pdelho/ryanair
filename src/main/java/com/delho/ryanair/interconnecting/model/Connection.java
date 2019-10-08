@@ -1,16 +1,14 @@
 package com.delho.ryanair.interconnecting.model;
 
-import java.util.List;
-
 public class Connection {
 	
 	private Integer stops;
-	private List<Leg> legs;
+	private Leg leg;
 	
-	public Connection(Integer stops, List<Leg> legs) {
+	public Connection(Integer stops, Leg leg) {
 		super();
 		this.stops = stops;
-		this.legs = legs;
+		this.leg = leg;
 	}
 
 	public Integer getStops() {
@@ -21,12 +19,12 @@ public class Connection {
 		this.stops = stops;
 	}
 	
-	public List<Leg> getLegs() {
-		return legs;
+	public Leg getLeg() {
+		return leg;
 	}
 	
-	public void setLegs(List<Leg> legs) {
-		this.legs = legs;
+	public void setLegs(Leg leg) {
+		this.leg = leg;
 	}
 
 }
