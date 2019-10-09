@@ -82,3 +82,7 @@ The response follows the pattern:
 	}
 ]
 ```
+
+### Future Work
+- Include test coverage to REST
+- Use Spring MVC to have a front application
