@@ -212,6 +212,12 @@ public class InterconnectingFlightsController {
 				}
 			}
 		}
+		
+		if (availableConnections.isEmpty() || availableConnections == null) {
+            LOG.debug("No flights matching your requirements");;
+            return new ResponseEntity<PriorityQueue<Connection>>(HttpStatus.NOT_FOUND);
+        }
+		
     	return new ResponseEntity<PriorityQueue<Connection>>(availableConnections, HttpStatus.OK);
     }
     
