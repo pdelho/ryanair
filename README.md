@@ -1,5 +1,6 @@
 ### Installation
 Got to the root folder and execute
+
 `$ npm clean install`
 
 `$ cd target`
@@ -9,6 +10,11 @@ Got to the root folder and execute
 Alernatively, you can directly execute the .jar in the root folder, which has already been compiled:
 
 `$ java -jar interconnecting-1.0.0-SNAPSHOT.jar`
+
+### Requirements
+- Java 8
+- Spring Boot 
+- Maven
 
 
 ### Ryanair interconnecting flights tool
