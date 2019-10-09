@@ -73,7 +73,7 @@ public class InterconnectingFlightsController {
 	 * @param API string containing the routes API
 	 * @return a list of routes
 	 */
-	protected List<Route> getRoutes(String API) 
+	public List<Route> getRoutes(String API) 
 	{
 		final RestTemplate restTemplateRoutes = new RestTemplate();
 		final ResponseEntity<Route[]> responseEntity = restTemplateRoutes.getForEntity(API, Route[].class);
@@ -119,7 +119,7 @@ public class InterconnectingFlightsController {
 	 * @param scheduleAPI string of the scheduleAPI (https://services-api.ryanair.com/timtbl/3/schedules/DUB/WRO/years/2019/months/10)
 	 * @return the schedule or null if something went wrong
 	 */
-	protected Schedule getSchedule(final String scheduleAPI)
+	public Schedule getSchedule(final String scheduleAPI)
 	{
 		try
 		{
@@ -385,7 +385,7 @@ public class InterconnectingFlightsController {
      * @param legOne first leg used to take into account the time needed for interconnection
      * @return boolean indicating whether a connection is possible or not
      */
-    protected Boolean isScheduleAvailable (final Integer departingYear, final Integer departingMonth, Calendar departureDate, Calendar arrivalDate,
+    public Boolean isScheduleAvailable (final Integer departingYear, final Integer departingMonth, Calendar departureDate, Calendar arrivalDate,
     		final Day day, final Flight flight,	List<Calendar> departingArrivalFlightDates, 
     		final Boolean isDirect, final Leg legOne)
     {
@@ -416,7 +416,7 @@ public class InterconnectingFlightsController {
 	    	final Calendar legOneArrivalWithInterconnection = Calendar.getInstance();
 	    	legOneArrivalWithInterconnection.setTime(legOneArrivalWithInterconnectionDate);
 	    	// Increase two hours
-	    	legOneArrivalWithInterconnection.set(Calendar.HOUR_OF_DAY, legOneArrivalWithInterconnection.get(Calendar.HOUR_OF_DAY) + Constants.CONNECTION_FLIGHT_HOURS);
+	    	legOneArrivalWithInterconnection.add(Calendar.HOUR_OF_DAY, Constants.CONNECTION_FLIGHT_HOURS);
 	    	
 	    	// Departing date must be after and arrival date must be before
 	    	// AND departing date with interconnection before that arrivalDateFlight
