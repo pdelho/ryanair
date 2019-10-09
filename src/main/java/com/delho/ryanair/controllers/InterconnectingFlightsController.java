@@ -5,8 +5,10 @@ import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Calendar;
+import java.util.Comparator;
 import java.util.Date;
 import java.util.List;
+import java.util.PriorityQueue;
 import java.util.stream.Collectors;
 
 import org.slf4j.Logger;
@@ -96,14 +98,15 @@ public class InterconnectingFlightsController {
 	}
 	
     @RequestMapping("/interconnections")
-    public ResponseEntity<List<Connection>> interconnections(
+    public ResponseEntity<PriorityQueue<Connection>> interconnections(
     		@RequestParam(value="departure", required=false, defaultValue="DUB") final String departure,
     		@RequestParam(value="arrival", required=false, defaultValue="WRO") final String arrival,
     		@RequestParam(value="departureDateTime", required=false) @DateTimeFormat(pattern=Constants.DATE_PATTERN) final Date departureDateTime,
     		@RequestParam(value="arrivalDateTime", required=false) @DateTimeFormat(pattern=Constants.DATE_PATTERN) final Date arrivalDateTime) {
     	
-    	// We will return a list of connections
-    	List <Connection> availableConnections = new ArrayList<Connection>();
+    	// We will return a list of connections ordered by number of stops
+    	Comparator<Connection> stopsSorter = Comparator.comparing(Connection::getStops);
+    	PriorityQueue <Connection> availableConnections = new PriorityQueue<Connection>(stopsSorter);
     	
     	// Use calendars instead of Date as some methods are deprecated
     	final Calendar departureDate = Calendar.getInstance();
@@ -256,10 +259,10 @@ public class InterconnectingFlightsController {
 		
 		// Set interconnected flights if any
     	
-    	return new ResponseEntity<List<Connection>>(availableConnections, HttpStatus.OK);
+    	return new ResponseEntity<PriorityQueue<Connection>>(availableConnections, HttpStatus.OK);
     }
     
-    protected void setDirecteFlights (final List<Connection> connections, final Route departingRoute, final String arrival, 
+    protected void setDirecteFlights (final PriorityQueue<Connection> connections, final Route departingRoute, final String arrival, 
     		final Integer departingYear, final Integer departingMonth, final Calendar departureDate, final Calendar arrivalDate)
     {
     	final String scheduleAPI = String.format(Constants.SCHEDULES_API_PATTERN, departingRoute.getAirportFrom(), arrival, departingYear, departingMonth);
